@@ -2,6 +2,7 @@ import json
 import tempfile
 import io
 import asyncio
+import os
 import requests
 import streamlit as st
 from audio_recorder_streamlit import audio_recorder
@@ -23,7 +24,6 @@ def load_lottieurl(url: str):
     except:
         return None
 
-# Animación de ondas de sonido estilo Gemini Live
 lottie_voice = load_lottieurl("https://lottie.host/9e0004bc-6e4f-409b-a362-e64e9a8f4c39/iT1B3p4E7Y.json")
 
 # Configuración de API Key
@@ -32,7 +32,6 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     st.error("⚠️ No se encontró la GEMINI_API_KEY en los secretos.")
 
-# Configurar voz neuronal colombiana (Salomé)
 VOZ_ASISTENTE = "es-CO-SalomeNeural" 
 
 async def generar_audio(texto):
@@ -50,19 +49,17 @@ def hablar(texto, autoplay=True):
     except Exception as e:
         st.warning(f"Error generando el audio: {e}")
 
-# Estado de la sesión
 if "iniciado" not in st.session_state:
     st.session_state["iniciado"] = False
 
 # -----------------------------------------------------------------------------
-# PANTALLA DE BIENVENIDA (ESTILO GEMINI LIVE)
+# PANTALLA DE BIENVENIDA
 # -----------------------------------------------------------------------------
 if not st.session_state["iniciado"]:
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align: center; color: #4C8BF5;'>✨ Kenzo Jeans Voice</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #9AA0A6;'>Asistente Inteligente de Mantenimiento</p>", unsafe_allow_html=True)
     
-    # Animación central de inicio
     if lottie_voice:
         st_lottie(lottie_voice, height=200, key="voice_start")
     
@@ -72,16 +69,14 @@ if not st.session_state["iniciado"]:
         st.rerun()
 
 # -----------------------------------------------------------------------------
-# INTERFAZ DE CONVERSACIÓN
+# INTERFAZ DE CONVERSACIÓN Y BIBLIOTECA
 # -----------------------------------------------------------------------------
 else:
     st.markdown("<h2 style='text-align: center; color: #4C8BF5;'>🎙️ Asistente de Mantenimiento</h2>", unsafe_allow_html=True)
     
-    # Saludo por voz e instrucción en pantalla
     saludo = "Bienvenido a la aplicación para el reporte de mantenimiento Kenzo Jeans. ¿Qué reporte realizarás el día de hoy?"
     hablar(saludo, autoplay=True)
     
-    # Tarjeta de mensaje del asistente
     st.markdown(
         """
         <div style='background-color: #1A1D24; padding: 15px; border-radius: 12px; border-left: 4px solid #4C8BF5; margin-bottom: 20px;'>
@@ -91,13 +86,11 @@ else:
         unsafe_allow_html=True
     )
 
-    # Animación de escucha viva
     if lottie_voice:
         st_lottie(lottie_voice, height=140, key="voice_active")
 
     st.markdown("<p style='text-align: center; color: #9AA0A6;'>Presiona el micrófono para iniciar/detener tu dictado:</p>", unsafe_allow_html=True)
 
-    # Micrófono
     audio_bytes = audio_recorder(
         text="",
         recording_color="#ea4335",
@@ -141,7 +134,6 @@ else:
                     st.markdown("---")
                     st.markdown("### 📋 Resumen del Mantenimiento")
                     
-                    # Presentación visual estilizada estilo tarjeta
                     maquina = datos_reporte.get('equipo_o_maquina', 'No especificada')
                     estado = datos_reporte.get('estado_final', 'No especificado')
                     trabajo = datos_reporte.get('trabajo_realizado', 'No especificado')
@@ -157,14 +149,54 @@ else:
                         unsafe_allow_html=True
                     )
 
-                    # Confirmación hablada del cierre
                     cierre_vocally = f"Entendido. Se ha guardado el reporte para {maquina} con estado {estado}."
                     hablar(cierre_vocally, autoplay=True)
 
                 except Exception as e:
                     st.error(f"Error al analizar el audio: {e}")
 
+    # -----------------------------------------------------------------------------
+    # BIBLIOTECA TÉCNICA DE PLANTA (LECTOR DE MANUALES PDF)
+    # -----------------------------------------------------------------------------
+    st.markdown("---")
+    st.markdown("<h3 style='color: #4C8BF5;'>📚 Biblioteca Técnica de Planta</h3>", unsafe_allow_html=True)
+    st.write("Sube el manual de la máquina en PDF y consulta dudas técnicas específicas.")
+
+    archivo_pdf = st.file_uploader("Cargar manual técnico (PDF)", type=["pdf"])
+    pregunta_mecanico = st.text_input("¿Qué necesitas saber de este manual?", placeholder="Ej: ¿Cómo calibro la presión de la válvula principal?")
+
+    if st.button("💡 Consultar Manual", type="primary"):
+        if archivo_pdf is not None and pregunta_mecanico:
+            with st.spinner("Leyendo el manual y buscando la respuesta..."):
+                try:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
+                        temp_pdf.write(archivo_pdf.read())
+                        ruta_pdf = temp_pdf.name
+
+                    documento_cargado = genai.upload_file(path=ruta_pdf)
+
+                    prompt_consulta = f"""
+                    Eres un experto en mantenimiento industrial. Tu tarea es responder la pregunta del usuario basándote ÚNICA Y EXCLUSIVAMENTE en el documento PDF adjunto.
+                    Si la respuesta no está en el documento, di claramente: "El manual no contiene información sobre esto."
+                    Explica los pasos de forma clara y directa para un mecánico de planta.
+                    
+                    Pregunta del usuario: {pregunta_mecanico}
+                    """
+
+                    modelo_documentos = genai.GenerativeModel("gemini-1.5-flash")
+                    respuesta_tecnica = modelo_documentos.generate_content([documento_cargado, prompt_consulta])
+
+                    st.info("📖 **Respuesta del Manual:**")
+                    st.write(respuesta_tecnica.text)
+
+                    os.remove(ruta_pdf)
+
+                except Exception as e:
+                    st.error(f"Error al procesar el documento: {e}")
+        else:
+            st.warning("⚠️ Por favor, sube un manual en PDF y escribe una pregunta.")
+
     st.markdown("<br><hr>", unsafe_allow_html=True)
-    if st.button("🔄 Nuevo Reporte"):
+    if st.button("🔄 Reiniciar Asistente"):
         st.session_state["iniciado"] = False
         st.rerun()
