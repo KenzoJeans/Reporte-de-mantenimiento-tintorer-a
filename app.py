@@ -159,8 +159,10 @@ else:
                     st.error(f"Error al analizar el audio: {e}")
 
     # -----------------------------------------------------------------------------
-    # BIBLIOTECA TÉCNICA DE PLANTA (LECTOR DE MANUALES PDF)
+    # BIBLIOTECA TÉCNICA DE PLANTA (LECTOR DE MANUALES PDF CON ESPERA DE PROCESAMIENTO)
     # -----------------------------------------------------------------------------
+    import time
+
     st.markdown("---")
     st.markdown("<h3 style='color: #4C8BF5;'>📚 Biblioteca Técnica de Planta</h3>", unsafe_allow_html=True)
     st.write("Sube el manual de la máquina en PDF y consulta dudas técnicas específicas.")
@@ -170,15 +172,25 @@ else:
 
     if st.button("💡 Consultar Manual", type="primary"):
         if archivo_pdf is not None and pregunta_mecanico:
-            with st.spinner("Leyendo el manual y buscando la respuesta..."):
+            with st.spinner("Procesando PDF y analizando manual con Gemini..."):
                 try:
+                    # 1. Guardar archivo temporalmente
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
                         temp_pdf.write(archivo_pdf.read())
                         ruta_pdf = temp_pdf.name
 
-                    # Carga del PDF con el nuevo cliente oficial
+                    # 2. Subir archivo a la API de Gemini
                     documento_cargado = client.files.upload(file=ruta_pdf)
 
+                    # 3. Esperar a que el estado del archivo sea 'ACTIVE'
+                    while documento_cargado.state.name == "PROCESSING":
+                        time.sleep(2)
+                        documento_cargado = client.files.get(name=documento_cargado.name)
+
+                    if documento_cargado.state.name == "FAILED":
+                        raise Exception("El procesamiento del archivo PDF falló en el servidor.")
+
+                    # 4. Generar la respuesta
                     prompt_consulta = f"""
                     Eres un experto en mantenimiento industrial. Tu tarea es responder la pregunta del usuario basándote ÚNICA Y EXCLUSIVAMENTE en el documento PDF adjunto.
                     Si la respuesta no está en el documento, di claramente: "El manual no contiene información sobre esto."
@@ -187,23 +199,30 @@ else:
                     Pregunta del usuario: {pregunta_mecanico}
                     """
 
-                    # Generación con Gemini 2.5 (SDK Nuevo)
                     respuesta_tecnica = client.models.generate_content(
                         model="gemini-2.5-flash",
                         contents=[documento_cargado, prompt_consulta]
                     )
 
-                    st.info("📖 **Respuesta del Manual:**")
-                    st.write(respuesta_tecnica.text)
+                    # 5. Mostrar la respuesta de forma destacada
+                    if respuesta_tecnica.text:
+                        st.markdown("---")
+                        st.markdown(
+                            f"""
+                            <div style='background-color: #1A1D24; padding: 18px; border-radius: 12px; border-left: 4px solid #34A853;'>
+                                <p style='color: #34A853; font-size: 1.1em; font-weight: bold; margin-bottom: 8px;'>📖 Respuesta del Manual:</p>
+                                <p style='color: #F0F4F9; font-size: 1em; line-height: 1.5;'>{respuesta_tecnica.text}</p>
+                            </div>
+                            """, 
+                            unsafe_allow_html=True
+                        )
+                    else:
+                        st.warning("No se pudo extraer texto de la respuesta.")
 
+                    # Limpieza del archivo local
                     os.remove(ruta_pdf)
 
                 except Exception as e:
                     st.error(f"Error al procesar el documento: {e}")
         else:
             st.warning("⚠️ Por favor, sube un manual en PDF y escribe una pregunta.")
-
-    st.markdown("<br><hr>", unsafe_allow_html=True)
-    if st.button("🔄 Reiniciar Asistente"):
-        st.session_state["iniciado"] = False
-        st.rerun()
