@@ -12,6 +12,14 @@ def hablar(texto):
     audio_memoria.seek(0)
     # Reproduce el audio automáticamente
     st.audio(audio_memoria, format="audio/mp3", autoplay=True)
+# Construir el texto de confirmación
+maquina = datos_reporte.get("equipo_o_maquina", "el equipo")
+estado = datos_reporte.get("estado_final", "no especificado")
+
+mensaje_confirmacion = f"Reporte procesado correctamente para {maquina}. Quedó en estado {estado}."
+
+# Hacer que la app lo diga en voz alta
+hablar(mensaje_confirmacion)
 
 # Configuración de página adaptada para móviles
 st.set_page_config(page_title="Reporte de Mantenimiento", layout="centered")
