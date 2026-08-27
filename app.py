@@ -4,7 +4,8 @@ import io
 import streamlit as st
 from audio_recorder_streamlit import audio_recorder
 import google.generativeai as genai
-from gtts import gTTS
+import asyncio
+import edge_tts
 
 # Configuración de la página
 st.set_page_config(page_title="Mantenimiento Kenzo Jeans", layout="centered", page_icon="🔧")
@@ -15,13 +16,19 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     st.error("⚠️ No se encontró la GEMINI_API_KEY en los secretos.")
 
-# Función auxiliar para generar y reproducir audio
+# Función con voz neuronal realista (Acento Colombiano)
+# Opciones de voz: "es-CO-SalmeNeural" (femenina) o "es-CO-GonzaloNeural" (masculina)
+async def generar_audio(texto, voz="es-CO-SalmeNeural"):
+    communicate = edge_tts.Communicate(texto, voz)
+    audio_data = b""
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            audio_data += chunk["data"]
+    return audio_data
+
 def hablar(texto, autoplay=True):
-    tts = gTTS(text=texto, lang='es')
-    audio_memoria = io.BytesIO()
-    tts.write_to_fp(audio_memoria)
-    audio_memoria.seek(0)
-    st.audio(audio_memoria, format="audio/mp3", autoplay=autoplay)
+    audio_bytes = asyncio.run(generar_audio(texto))
+    st.audio(audio_bytes, format="audio/mp3", autoplay=autoplay)
 
 # Control del estado de la aplicación
 if "iniciado" not in st.session_state:
