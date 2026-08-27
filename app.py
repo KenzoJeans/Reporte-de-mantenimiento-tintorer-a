@@ -16,10 +16,12 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     st.error("⚠️ No se encontró la GEMINI_API_KEY en los secretos.")
 
-# Función con voz neuronal realista (Acento Colombiano)
-# Opciones de voz: "es-CO-SalmeNeural" (femenina) o "es-CO-GonzaloNeural" (masculina)
-async def generar_audio(texto, voz="es-CO-SalmeNeural"):
-    communicate = edge_tts.Communicate(texto, voz)
+# Nombre de voz corregido (Salomé)
+# Si prefieres voz masculina, puedes usar: "es-CO-GonzaloNeural"
+VOZ_ASISTENTE = "es-CO-SalomeNeural" 
+
+async def generar_audio(texto):
+    communicate = edge_tts.Communicate(texto, VOZ_ASISTENTE)
     audio_data = b""
     async for chunk in communicate.stream():
         if chunk["type"] == "audio":
@@ -27,8 +29,11 @@ async def generar_audio(texto, voz="es-CO-SalmeNeural"):
     return audio_data
 
 def hablar(texto, autoplay=True):
-    audio_bytes = asyncio.run(generar_audio(texto))
-    st.audio(audio_bytes, format="audio/mp3", autoplay=autoplay)
+    try:
+        audio_bytes = asyncio.run(generar_audio(texto))
+        st.audio(audio_bytes, format="audio/mp3", autoplay=autoplay)
+    except Exception as e:
+        st.warning(f"Error generando el audio: {e}")
 
 # Control del estado de la aplicación
 if "iniciado" not in st.session_state:
