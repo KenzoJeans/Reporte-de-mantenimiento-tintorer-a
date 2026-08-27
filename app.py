@@ -6,7 +6,7 @@ import os
 import requests
 import streamlit as st
 from audio_recorder_streamlit import audio_recorder
-import google.generativeai as genai
+from google import genai
 import edge_tts
 from streamlit_lottie import st_lottie
 
@@ -26,11 +26,12 @@ def load_lottieurl(url: str):
 
 lottie_voice = load_lottieurl("https://lottie.host/9e0004bc-6e4f-409b-a362-e64e9a8f4c39/iT1B3p4E7Y.json")
 
-# Configuración de API Key
+# Configuración del nuevo Cliente de Gemini (Soporta claves AQ.)
 if "GEMINI_API_KEY" in st.secrets:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 else:
     st.error("⚠️ No se encontró la GEMINI_API_KEY en los secretos.")
+    client = None
 
 VOZ_ASISTENTE = "es-CO-SalomeNeural" 
 
@@ -109,7 +110,7 @@ else:
                         temp_audio.write(audio_bytes)
                         temp_audio_path = temp_audio.name
 
-                    audio_file = genai.upload_file(path=temp_audio_path)
+                    audio_file = client.files.upload(file=temp_audio_path)
 
                     prompt = """
                     Eres un asistente experto en mantenimiento industrial textil y de confección.
@@ -125,8 +126,10 @@ else:
                     Si algún campo no es mencionado, asigna "No especificado".
                     """
 
-                    model = genai.GenerativeModel("gemini-1.5-flash")
-                    response = model.generate_content([audio_file, prompt])
+                    response = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=[audio_file, prompt]
+                    )
 
                     texto_respuesta = response.text.replace("```json", "").replace("```", "").strip()
                     datos_reporte = json.loads(texto_respuesta)
@@ -163,7 +166,7 @@ else:
     st.write("Sube el manual de la máquina en PDF y consulta dudas técnicas específicas.")
 
     archivo_pdf = st.file_uploader("Cargar manual técnico (PDF)", type=["pdf"])
-    pregunta_mecanico = st.text_input("¿Qué necesitas saber de este manual?", placeholder="Ej: ¿Cómo calibro la presión de la válvula principal?")
+    pregunta_mecanico = st.text_input("¿Qué necesitas saber de este manual?", placeholder="Ej: ¿Cómo calibro la presión de las ruedas?")
 
     if st.button("💡 Consultar Manual", type="primary"):
         if archivo_pdf is not None and pregunta_mecanico:
@@ -173,7 +176,8 @@ else:
                         temp_pdf.write(archivo_pdf.read())
                         ruta_pdf = temp_pdf.name
 
-                    documento_cargado = genai.upload_file(path=ruta_pdf)
+                    # Carga del PDF con el nuevo cliente oficial
+                    documento_cargado = client.files.upload(file=ruta_pdf)
 
                     prompt_consulta = f"""
                     Eres un experto en mantenimiento industrial. Tu tarea es responder la pregunta del usuario basándote ÚNICA Y EXCLUSIVAMENTE en el documento PDF adjunto.
@@ -183,8 +187,11 @@ else:
                     Pregunta del usuario: {pregunta_mecanico}
                     """
 
-                    modelo_documentos = genai.GenerativeModel("gemini-1.5-flash")
-                    respuesta_tecnica = modelo_documentos.generate_content([documento_cargado, prompt_consulta])
+                    # Generación con Gemini 2.5 (SDK Nuevo)
+                    respuesta_tecnica = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=[documento_cargado, prompt_consulta]
+                    )
 
                     st.info("📖 **Respuesta del Manual:**")
                     st.write(respuesta_tecnica.text)
