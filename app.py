@@ -45,11 +45,12 @@ if not st.session_state["iniciado"]:
 else:
     st.title("🔧 Mantenimiento Kenzo Jeans")
     
-    # Saludo de voz automático (Funciona porque el usuario ya presionó el botón de inicio)
+    # Saludo de voz automático
     saludo = "Bienvenido a la aplicación para el reporte de mantenimiento Kenzo Jeans. ¿Qué reporte realizarás el día de hoy?"
     hablar(saludo, autoplay=True)
     
-    st.info("💡 **Asistente:** "¿Qué reporte realizarás el día de hoy?"")
+    # Línea 52 corregida usando comillas simples internas:
+    st.info("💡 **Asistente:** '¿Qué reporte realizarás el día de hoy?'")
     st.write("Presiona el micrófono a continuación para dictar tu respuesta:")
 
     # Grabador de audio
