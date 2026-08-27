@@ -1,1 +1,3 @@
-pip install streamlit audio-recorder-streamlit
+streamlit
+audio-recorder-streamlit
+google-generativeai
