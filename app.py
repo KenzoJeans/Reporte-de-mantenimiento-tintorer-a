@@ -1,6 +1,17 @@
 import streamlit as st
 from audio_recorder_streamlit import audio_recorder
 import datetime
+from gtts import gTTS
+import io
+
+def hablar(texto):
+    # Genera el audio en español
+    tts = gTTS(text=texto, lang='es')
+    audio_memoria = io.BytesIO()
+    tts.write_to_fp(audio_memoria)
+    audio_memoria.seek(0)
+    # Reproduce el audio automáticamente
+    st.audio(audio_memoria, format="audio/mp3", autoplay=True)
 
 # Configuración de página adaptada para móviles
 st.set_page_config(page_title="Reporte de Mantenimiento", layout="centered")
