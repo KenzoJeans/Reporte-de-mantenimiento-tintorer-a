@@ -1,0 +1,6 @@
+[theme]
+primaryColor = "#4C8BF5"             # Azul brillante para botones y acentos
+backgroundColor = "#0D0F12"          # Fondo oscuro profundo
+secondaryBackgroundColor = "#1A1D24"    # Fondo secundario para contenedores
+textColor = "#F0F4F9"               # Texto claro de alta legibilidad
+font = "sans serif"
