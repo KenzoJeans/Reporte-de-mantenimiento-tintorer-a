@@ -2,3 +2,5 @@ streamlit
 audio-recorder-streamlit
 google-generativeai
 edge-tts
+streamlit-lottie
+requests
